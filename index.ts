@@ -12,6 +12,8 @@ type ForumStats = {
   posts: number
 }
 
+const LAST_RUN_FILENAME = path.resolve(__dirname, 'last_run.txt')
+
 const parseNumber = (num: string) => {
   return parseInt(num.replace(',', '').trim(), 10)
 }
@@ -166,6 +168,11 @@ const parser = parse({delimiter: ','}, async (err, data) => {
   let index = 0
   console.time('timeElapsed')
 
+  let lastRunIndex = fs.existsSync(LAST_RUN_FILENAME) ? parseInt(fs.readFileSync(LAST_RUN_FILENAME, 'utf-8'), 10) : -1
+  if (Number.isNaN(lastRunIndex)) {
+    lastRunIndex = -1
+  }
+
   for await (const row of data) {
     if (row[0] === 'Domain') {
       writeResults([...row, 'Members', 'Posts', 'Threads', 'Forum Detected'])
@@ -174,6 +181,10 @@ const parser = parse({delimiter: ','}, async (err, data) => {
     }
 
     ++index
+    if (index <= lastRunIndex) {
+      // already processed. skipping
+      continue
+    }
 
     const [domain, url, platform] = row as string[]
     const urls = (url as string)
@@ -234,6 +245,7 @@ const parser = parse({delimiter: ','}, async (err, data) => {
       console.timeEnd()
     }
 
+    fs.writeFileSync(LAST_RUN_FILENAME, String(index))
     console.groupEnd()
   }
 
