@@ -175,7 +175,7 @@ const parser = parse({delimiter: ','}, async (err, data) => {
 
   for await (const row of data) {
     if (row[0] === 'Domain') {
-      writeResults([...row, 'Members', 'Posts', 'Threads', 'Forum Detected'])
+      writeResults([...row, 'Members', 'Posts', 'Threads', 'Forum Detected', 'Error'])
 
       continue
     }
@@ -200,7 +200,8 @@ const parser = parse({delimiter: ','}, async (err, data) => {
       // 4 -> posts
       // 5 -> threads
       // 6 -> forum detected
-      let result = [...row, 0, 0, 0, 'No']
+      // 7 -> error
+      let result = [...row, 0, 0, 0, 'No', '']
       result[1] = urlToFetch
 
       try {
@@ -239,6 +240,7 @@ const parser = parse({delimiter: ','}, async (err, data) => {
       } catch (e: any) {
         console.log(e.message)
         result[6] = 'No'
+        result[7] = e.message
       }
 
       await writeResults(result)
