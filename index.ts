@@ -10,16 +10,10 @@ type ForumStats = {
   members: number
   threads: number
   posts: number
-};
-
-const r = (v: number) => (v / 1024 / 1024).toFixed(2);
-const printMemoryUsage = () => {
-  const { rss, heapTotal, heapUsed } = process.memoryUsage();
-  console.log(`Memory usage: rss ${r(rss)}, heap ${r(heapUsed)} / ${r(heapTotal)}`);
-};
+}
 
 const parseNumber = (num: string) => {
-  return parseInt(num.replace(',', '').trim(), 10);
+  return parseInt(num.replace(',', '').trim(), 10)
 }
 
 const getXFStats = (html: string, stats: ForumStats) => {
@@ -45,6 +39,8 @@ const getXFStats = (html: string, stats: ForumStats) => {
       threads: parseNumber($('.discussionCount dd').text()),
       posts: parseNumber($('.messageCount dd').text()),
     })
+
+    return
   }
 
   // xf 2.x.x
@@ -54,11 +50,11 @@ const getXFStats = (html: string, stats: ForumStats) => {
     threads: parseNumber($('.count--threads dd').text()),
     posts: parseNumber($('.count--messages dd').text()),
   })
-};
+}
 const getYaBBStats = (html: string, stats: ForumStats) => {
   const $ = load(html)
 
-  const els = $('.forumStatisticsContent span');
+  const els = $('.forumStatisticsContent span')
   els.each((_i, el) => {
     const elId = $(el).attr('id')
     if (!elId) {
@@ -88,21 +84,23 @@ const getYaBBStats = (html: string, stats: ForumStats) => {
       }
     }
   })
-};
+}
 
 const getXMBStats = (html: string, stats: ForumStats) => {
   const $ = load(html)
+  let merged = false
 
   $('table td').each((_i, el) => {
     const strongEls = $(el).find('>strong')
-    if (strongEls.length === 3) {
+    if (strongEls.length === 3 && merged === false) {
+      merged = true
       Object.assign(stats, {
         ...stats,
         members: parseNumber($(strongEls[2]).text().trim()),
         posts: parseNumber($(strongEls[1]).text().trim()),
         threads: parseNumber($(strongEls[0]).text().trim()),
       })
-    } 
+    }
   })
 }
 
@@ -166,6 +164,7 @@ const parser = parse({delimiter: ','}, async (err, data) => {
 
   const totalRows = data.length
   let index = 0
+  console.time('timeElapsed')
 
   for await (const row of data) {
     if (row[0] === 'Domain') {
@@ -176,8 +175,11 @@ const parser = parse({delimiter: ','}, async (err, data) => {
 
     ++index
 
-    const [domain, url, platform] = row as string[];
-    const urls = (url as string).split(';').map(v => _.trim(v)).map(v => _.trimEnd(v, '/*'));
+    const [domain, url, platform] = row as string[]
+    const urls = (url as string)
+      .split(';')
+      .map((v) => _.trim(v))
+      .map((v) => _.trimEnd(v, '/*'))
     console.group(`${domain} ${platform} ${index} / ${totalRows}`)
 
     for await (const urlToFetch of urls) {
@@ -193,7 +195,7 @@ const parser = parse({delimiter: ','}, async (err, data) => {
       try {
         const resp = await axios.get(`http://${urlToFetch}`, {
           timeout: 3000,
-          validateStatus: status => status >= 200 && status <= 403,
+          validateStatus: (status) => status >= 200 && status <= 403,
           maxRedirects: 3,
           withCredentials: true,
           headers: {
@@ -231,9 +233,11 @@ const parser = parse({delimiter: ','}, async (err, data) => {
       await writeResults(result)
       console.timeEnd()
     }
-    
+
     console.groupEnd()
   }
+
+  console.timeEnd('timeElapsed')
 })
 
 fs.createReadStream(`${__dirname}/forum_list.csv`).pipe(parser)
